@@ -22,6 +22,16 @@ def on_A_pressed():
 
 controller.A.onEvent(ControllerButtonEvent.Pressed, on_A_pressed)
 
+# Create a target enemy to shoot at
+enemy = sprites.create(img"""
+    . . . . . . . . . . . . . . . .
+    . . . . . 2 2 2 2 2 . . . . . .
+    . . . . 2 2 2 2 2 2 2 . . . . .
+    . . . . . 2 2 2 2 2 . . . . . .
+    . . . . . . . . . . . . . . . .
+""", SpriteKind.enemy)
+enemy.setPosition(120, 60)
+
 sprites.onOverlap(SpriteKind.projectile, SpriteKind.enemy, lambda s, e: (
     s.destroy(),
     e.destroy(),
