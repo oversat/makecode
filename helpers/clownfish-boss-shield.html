@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🐟 Clownfish → Boss + Shield</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      line-height: 1.6;
+    }
+    h1 { color: #e05a00; }
+    h2 { color: #333; border-bottom: 2px solid #e05a00; padding-bottom: 0.25rem; }
+    details {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      margin: 1rem 0;
+      padding: 0.5rem 1rem;
+    }
+    summary {
+      font-weight: bold;
+      cursor: pointer;
+      padding: 0.25rem 0;
+    }
+    pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.9rem;
+    }
+    .tag {
+      display: inline-block;
+      background: #e05a00;
+      color: white;
+      border-radius: 4px;
+      padding: 0.1rem 0.5rem;
+      font-size: 0.85rem;
+      margin-right: 0.25rem;
+    }
+    .tag.green { background: #2a7a2a; }
+    .tag.blue  { background: #1a5fa8; }
+    .note {
+      background: #fff8e1;
+      border-left: 4px solid #f9a825;
+      padding: 0.75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🐟 Clownfish → Boss + Shield</h1>
+
+<p>
+  Paste these blocks into your original game.
+  <span class="tag">🟠 on start</span> blocks go at the top with your setup,
+  <span class="tag green">🟢 on game update</span> blocks go anywhere after your sprites are made, and
+  <span class="tag blue">🔵 edit</span> blocks edit code you already have.
+</p>
+
+<h2>1. Variables &amp; Constants (on start)</h2>
+<details>
+  <summary>🟠 Add to <code>on start</code></summary>
+  <pre><code>// Boss + Shield variables
+let bossHP = 6
+let bossActive = false
+let shieldActive = false
+let reflectCount = 0
+let boss: Sprite = null
+let shield: Sprite = null
+let bossInterval = 0</code></pre>
+</details>
+
+<h2>2. Spawn Boss at Level 3 (on game update)</h2>
+<details>
+  <summary>🟢 Trigger boss when player reaches Level 3</summary>
+  <pre><code>game.onUpdate(function () {
+    if (info.level() >= 3 && !bossActive) {
+        bossActive = true
+        spawnBoss()
+    }
+})
+
+function spawnBoss() {
+    boss = sprites.create(assets.image`clownfish_boss`, SpriteKind.Enemy)
+    boss.x = 120
+    boss.y = 30
+    boss.setFlag(SpriteFlag.StayInScreen, true)
+    bossInterval = game.runtime()
+}</code></pre>
+</details>
+
+<h2>3. Boss Attack — Fire Red Balls</h2>
+<details>
+  <summary>🟢 Boss periodically fires red balls at the player</summary>
+  <pre><code>game.onUpdate(function () {
+    if (bossActive && boss && game.runtime() - bossInterval > 2000) {
+        bossInterval = game.runtime()
+        let ball = sprites.createProjectileFromSprite(
+            assets.image`red_ball`,
+            boss,
+            0,
+            60
+        )
+        ball.setKind(SpriteKind.Projectile)
+    }
+})</code></pre>
+</details>
+
+<h2>4. Shield — Tap A to Reflect</h2>
+<details>
+  <summary>🔵 Edit / add A-button handler</summary>
+  <pre><code>controller.A.onEvent(ControllerButtonEvent.Pressed, function () {
+    if (bossActive) {
+        // Raise shield briefly
+        shieldActive = true
+        if (shield == null) {
+            shield = sprites.create(assets.image`shield`, SpriteKind.Player)
+        }
+        shield.setPosition(mySprite.x, mySprite.y - 10)
+        pause(400)
+        shieldActive = false
+        shield.destroy()
+        shield = null
+    }
+})
+
+// Reflect incoming red balls
+sprites.onOverlap(SpriteKind.Projectile, SpriteKind.Player, function (projectile, player) {
+    if (shieldActive) {
+        // Reverse the ball back toward the boss
+        projectile.vy = -Math.abs(projectile.vy)
+        projectile.setKind(SpriteKind.Friendly)
+        reflectCount += 1
+        info.setScore(info.score() + 10)
+    } else {
+        info.changeLifeBy(-1)
+        projectile.destroy()
+    }
+})</code></pre>
+</details>
+
+<h2>5. Reflected Ball Hits Boss</h2>
+<details>
+  <summary>🔵 Edit / add overlap: Friendly vs Enemy</summary>
+  <pre><code>sprites.onOverlap(SpriteKind.Friendly, SpriteKind.Enemy, function (ball, enemy) {
+    ball.destroy()
+    bossHP -= 1
+    if (bossHP <= 0) {
+        boss.destroy(effects.disintegrate, 500)
+        boss = null
+        bossActive = false
+        game.splash("Boss defeated! 🎉")
+        info.changeLifeBy(1)
+    } else {
+        // Brief flash to show hit
+        enemy.startEffect(effects.spray, 200)
+    }
+})</code></pre>
+</details>
+
+<h2>6. Win Condition — 6 Clean Reflects</h2>
+<details>
+  <summary>🟢 Check reflect count each update</summary>
+  <pre><code>game.onUpdate(function () {
+    if (reflectCount >= 6 && bossActive) {
+        boss.destroy(effects.disintegrate, 500)
+        boss = null
+        bossActive = false
+        reflectCount = 0
+        game.splash("Perfect! 6 reflects — Boss vanquished! 🐟")
+        info.changeLifeBy(1)
+    }
+})</code></pre>
+</details>
+
+<div class="note">
+  <strong>▶ Test order:</strong>
+  Reach Level 3 through the research door → boss appears → tap <kbd>A</kbd> right as a red ball reaches you to bat it back.
+  6 clean reflects wins.
+</div>
+
+</body>
+</html>
